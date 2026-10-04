@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -Eeuxo pipefail
 ROOT=$(mktemp -d); trap 'rm -rf "$ROOT"' EXIT
 ENGINE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)/rotina_pdfs_cnpj.sh"
 mkpdf(){ mkdir -p "$(dirname "$1")"; gs -q -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile="$1" -c '/Helvetica findfont 12 scalefont setfont 72 720 moveto (test) show showpage'; }
