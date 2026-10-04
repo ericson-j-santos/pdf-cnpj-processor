@@ -12,7 +12,7 @@ RUN_ID="pdf-$(date -u +%Y%m%dT%H%M%SZ)-$"; START=$(date +%s); RUN_WORK="$PDF_WOR
 set +e
 args=(--root "$PDF_ROOT" --all --out "$PDF_OUT" --work "$RUN_WORK" --max-output-mb "$PDF_MAX_OUTPUT_MB")
 [[ -n "$TIPOLOGY_REGEX" ]] && args+=(--typology-regex "$TIPOLOGY_REGEX")
-timeout --signal=TERM --kill-after=2m "$PDF_TIMEOUT" "$ENGINE" "${args[@]}"
+timeout --signal=TERM --kill-after=2m "$PDF_TIMEOUT" bash "$ENGINE" "${args[@]}"
 rc=$?
 set -e
 END=$(date +%s); DURATION=$((END-START)); STATUS=OK; ((rc==0)) || STATUS=FALHA
