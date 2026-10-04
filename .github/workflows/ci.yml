@@ -1,0 +1,16 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ghostscript poppler-utils qpdf
+      - name: Syntax
+        run: bash -n rotina_pdfs_cnpj.sh processar_pdfs_cron.sh tests/test_e2e.sh
+      - name: E2E CNPJ-tipologia-competencia
+        run: bash tests/test_e2e.sh
