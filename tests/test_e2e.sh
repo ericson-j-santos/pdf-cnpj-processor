@@ -21,4 +21,33 @@ if bash "$ENGINE" --root "$ROOT/in" --all --out "$ROOT/out-blocked" --work "$ROO
 fi
 test ! -s "$ROOT/work-blocked/manifesto_partes.tsv" || test "$(wc -l < "$ROOT/work-blocked/manifesto_partes.tsv")" -eq 1
 grep -q 'tipologia não classificada' "$ROOT/work-blocked/falhas.tsv"
+
+# Notificações: mocks locais provam envio sem depender de Teams/SMTP externos.
+MOCK="$ROOT/mock"; mkdir -p "$MOCK"
+cat >"$MOCK/curl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$MOCK_CURL_LOG"
+exit "${MOCK_CURL_RC:-0}"
+EOF
+cat >"$MOCK/sendmail" <<'EOF'
+#!/usr/bin/env bash
+cat >>"$MOCK_MAIL_LOG"
+exit "${MOCK_MAIL_RC:-0}"
+EOF
+chmod +x "$MOCK/curl" "$MOCK/sendmail"
+export MOCK_CURL_LOG="$ROOT/curl.log" MOCK_MAIL_LOG="$ROOT/mail.log"
+export PDF_ROOT="$ROOT/in" PDF_OUT="$ROOT/notify-out" PDF_WORK="$ROOT/notify-work"
+export TIPOLOGY_REGEX="$REGEX" TEAMS_WEBHOOK_URL="https://example.invalid/teams"
+export EMAIL_TO="ops@example.invalid" EMAIL_FROM="pdf@example.invalid" SENDMAIL_BIN="$MOCK/sendmail"
+PATH="$MOCK:$PATH" bash "$(dirname "$ENGINE")/processar_pdfs_cron.sh"
+test "$(grep -c -- '--data-binary' "$MOCK_CURL_LOG")" -eq 1
+test "$(grep -c '^Subject: PDF CNPJ' "$MOCK_MAIL_LOG")" -eq 1
+test -s "$PDF_WORK/run/resumo.txt"
+
+# Falhas de notificação não podem transformar processamento válido em falha.
+: >"$MOCK_CURL_LOG"; : >"$MOCK_MAIL_LOG"
+MOCK_CURL_RC=22 MOCK_MAIL_RC=75 PATH="$MOCK:$PATH" bash "$(dirname "$ENGINE")/processar_pdfs_cron.sh"
+test "$(grep -c -- '--data-binary' "$MOCK_CURL_LOG")" -eq 1
+test "$(grep -c '^Subject: PDF CNPJ' "$MOCK_MAIL_LOG")" -eq 1
+
 echo E2E_OK
