@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-export PATH="/usr/local/bin:/usr/bin:/bin"
+export PATH="${PATH:-/usr/local/bin:/usr/bin:/bin}"
 BASE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ENGINE="$BASE_DIR/rotina_pdfs_cnpj.sh"; PDF_ENV_FILE="${PDF_ENV_FILE:-/etc/pdfs-cnpj.env}"
 [[ -r "$PDF_ENV_FILE" ]] && source "$PDF_ENV_FILE"
