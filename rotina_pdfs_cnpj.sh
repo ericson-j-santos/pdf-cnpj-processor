@@ -2,14 +2,14 @@
 set -Eeuo pipefail
 
 ROOT="."; OUT="./resultado_pdfs_cnpj"; WORK="./.rotina_pdfs_cnpj"; MODE="inventory"; PILOT_CNPJ=""; MAX_OUTPUT_MB=45
-TIPOLOGY_REGEX="${TIPOLOGY_REGEX:-}"
+TIPOLOGY_REGEX="${TIPOLOGY_REGEX:-}"\nTIPOLOGY_SOURCE="${TIPOLOGY_SOURCE:-filename-regex}"\nSITUATION_SOURCE="${SITUATION_SOURCE:-disabled}"
 while (($#)); do case "$1" in
   --root) ROOT=$2; shift 2;; --out) OUT=$2; shift 2;; --work) WORK=$2; shift 2;;
-  --max-output-mb) MAX_OUTPUT_MB=$2; shift 2;; --typology-regex) TIPOLOGY_REGEX=$2; shift 2;;
+  --max-output-mb) MAX_OUTPUT_MB=$2; shift 2;; --typology-regex) TIPOLOGY_REGEX=$2; shift 2;; --typology-source) TIPOLOGY_SOURCE=$2; shift 2;; --situation-source) SITUATION_SOURCE=$2; shift 2;;
   --inventory) MODE=inventory; shift;; --pilot) MODE=pilot; PILOT_CNPJ=$2; shift 2;; --all) MODE=all; shift;;
   *) echo "opção inválida: $1" >&2; exit 2;; esac; done
 [[ -d "$ROOT" ]] || { echo "origem inexistente: $ROOT" >&2; exit 2; }
-[[ -z "$PILOT_CNPJ" || "$PILOT_CNPJ" =~ ^[0-9]{14}$ ]] || { echo "CNPJ inválido" >&2; exit 2; }
+[[ -z "$PILOT_CNPJ" || "$PILOT_CNPJ" =~ ^[0-9]{14}$ ]] || { echo "CNPJ inválido" >&2; exit 2; }\n[[ "$TIPOLOGY_SOURCE" == "filename-regex" || "$TIPOLOGY_SOURCE" == "directory-disabled" ]] || { echo "fonte de tipologia não habilitada: $TIPOLOGY_SOURCE" >&2; exit 2; }\n[[ "$SITUATION_SOURCE" == "disabled" ]] || { echo "fonte de situação ainda não habilitada: $SITUATION_SOURCE" >&2; exit 2; }
 for c in gs pdfinfo sha256sum find sort stat; do command -v "$c" >/dev/null || { echo "$c ausente" >&2; exit 2; }; done
 MAX_OUTPUT_BYTES=$((MAX_OUTPUT_MB*1024*1024)); mkdir -p "$OUT" "$WORK"
 INV="$WORK/inventario.tsv"; MAN="$WORK/manifesto_partes.tsv"; FAIL="$WORK/falhas.tsv"
@@ -18,7 +18,7 @@ printf "cnpj\ttipologia\tcompetencia\tparte\tarquivo\tpaginas\ttamanho_bytes\tsh
 printf "cnpj\tarquivo\tmotivo\n" >"$FAIL"
 
 path_info(){ local f=$1 rel comp cnpj; rel="${f#"$ROOT"/}"; comp="${rel%%/*}"; rel="${rel#*/}"; cnpj="${rel%%/*}"; [[ "$comp" =~ ^[0-9]{8}$ && "$cnpj" =~ ^[0-9]{14}$ ]] || return 1; printf '%s\t%s\n' "$cnpj" "$comp"; }
-typology(){ local base; base=$(basename "$1" .pdf); [[ "$base" =~ ^[0-9]+$ ]] || return 1; [[ -n "$TIPOLOGY_REGEX" ]] || return 1; if [[ "$base" =~ $TIPOLOGY_REGEX && -n "${BASH_REMATCH[1]:-}" ]]; then printf '%s\n' "${BASH_REMATCH[1]}"; else return 1; fi; }
+typology(){ [[ "$TIPOLOGY_SOURCE" == "filename-regex" ]] || return 1; local base; base=$(basename "$1" .pdf); [[ "$base" =~ ^[0-9]+$ ]] || return 1; [[ -n "$TIPOLOGY_REGEX" ]] || return 1; if [[ "$base" =~ $TIPOLOGY_REGEX && -n "${BASH_REMATCH[1]:-}" ]]; then printf '%s\n' "${BASH_REMATCH[1]}"; else return 1; fi; }
 valid_pdf(){ [[ -s "$1" ]] && pdfinfo "$1" >/dev/null 2>&1 && gs -q -dBATCH -dNOPAUSE -sDEVICE=nullpage "$1" >/dev/null 2>&1; }
 
 while IFS= read -r -d '' f; do
