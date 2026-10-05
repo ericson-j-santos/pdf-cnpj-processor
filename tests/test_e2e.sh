@@ -50,4 +50,12 @@ MOCK_CURL_RC=22 MOCK_MAIL_RC=75 PATH="$MOCK:$PATH" bash "$(dirname "$ENGINE")/pr
 test "$(grep -c -- '--data-binary' "$MOCK_CURL_LOG")" -eq 1
 test "$(grep -c '^Subject: PDF CNPJ' "$MOCK_MAIL_LOG")" -eq 1
 
+# Fontes ainda não comprovadas devem falhar fechado.
+if bash "$ENGINE" --root "$ROOT/in" --all --out "$ROOT/out-dir" --work "$ROOT/work-dir" --typology-source directory; then
+  echo "ERRO: tipologia por diretório não comprovada deveria permanecer desabilitada" >&2; exit 1
+fi
+if bash "$ENGINE" --root "$ROOT/in" --inventory --out "$ROOT/out-sit" --work "$ROOT/work-sit" --situation-source filename; then
+  echo "ERRO: situação 0/1 não comprovada deveria permanecer desabilitada" >&2; exit 1
+fi
+
 echo E2E_OK
