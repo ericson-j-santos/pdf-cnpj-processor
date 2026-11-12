@@ -7,6 +7,8 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from piloto_streaming import Bloqueado, Diario, chave_documento, evento, ler_ndjson, processar_local
 
@@ -227,6 +229,31 @@ class PilotoHTTPReal(unittest.TestCase):
         linha_invalida = b'{"conteudo":"' + b"A" * (16 * 1024) + b'"}\n'
         with self.assertRaisesRegex(Bloqueado, "longa"):
             list(ler_ndjson([linha_invalida[:1000], linha_invalida[1000:]]))
+
+    def test_disco_insuficiente_bloqueia_antes_de_transferir(self):
+        # Livre para arquivo, mas nao para preservar reserva do servidor.
+        with patch("shutil.disk_usage", return_value=SimpleNamespace(free=512 * 1024**2)):
+            with self.assertRaisesRegex(Bloqueado, "disco"):
+                self.processar()
+        self.assertEqual(self.estado.puts, 0)
+        self.assertEqual(self.diario.ler(self.chave)[1], "BLOQUEADO")
+        self.assertFalse(list((self.raiz / "arquivos").glob("*.pdf")))
+
+    def test_disco_cai_durante_download_e_remove_temporario(self):
+        # Primeira leitura permite iniciar; segunda interrompe antes de escrita.
+        respostas = [SimpleNamespace(free=2 * 1024**3), SimpleNamespace(free=512 * 1024**2)]
+        with patch("shutil.disk_usage", side_effect=respostas):
+            with self.assertRaisesRegex(Bloqueado, "disco"):
+                self.processar()
+        self.assertEqual(self.estado.puts, 0)
+        self.assertEqual(self.diario.ler(self.chave)[1], "BLOQUEADO")
+        self.assertFalse(list((self.raiz / "arquivos").glob(".pdf-parcial-*")))
+
+    def test_falha_leitura_de_disco_bloqueia_sem_upload(self):
+        with patch("shutil.disk_usage", side_effect=OSError("falha de volume")):
+            with self.assertRaisesRegex(Bloqueado, "disco"):
+                self.processar()
+        self.assertEqual(self.estado.puts, 0)
 
     def test_pdfs_nao_sao_publicados_no_fluxo_de_negocio(self):
         self.processar()

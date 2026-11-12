@@ -11,6 +11,7 @@ import http.client
 import json
 import os
 import re
+import shutil
 import sqlite3
 import tempfile
 from datetime import datetime, timezone
@@ -19,6 +20,8 @@ from urllib.parse import urlsplit
 
 TAMANHO_BLOCO = 64 * 1024
 LIMITE_MAXIMO = 256 * 1024 * 1024
+# Reserva conservadora para ambiente de teste: nao dimensiona o legado corporativo.
+RESERVA_DISCO_PILOTO = 1024 * 1024 * 1024
 IDENTIFICADOR = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 HASH = re.compile(r"[a-fA-F0-9]{64}\Z")
 
@@ -174,6 +177,22 @@ def chave_documento(contrato: str, documento: str, versao: str) -> str:
     return hashlib.sha256(f"{contrato}|{documento}|{versao}".encode()).hexdigest()
 
 
+def _verificar_reserva_disco(diretorio: Path, proxima_gravacao: int) -> None:
+    """Falha fechada se o volume nao preservar a reserva local do piloto.
+
+    Apenas medicao instantanea: concorrentes e outros servicos podem consumir
+    espaco depois da consulta. Producao exige quotas de SO e reserva central.
+    """
+    if type(proxima_gravacao) is not int or proxima_gravacao < 0:
+        raise Bloqueado("Reserva de disco invalida")
+    try:
+        livre = shutil.disk_usage(diretorio).free
+    except OSError as exc:
+        raise Bloqueado("Nao foi possivel conferir espaco de disco") from exc
+    if type(livre) is not int or livre < RESERVA_DISCO_PILOTO + proxima_gravacao:
+        raise Bloqueado("Espaco de disco insuficiente para preservar reserva do piloto")
+
+
 def baixar_pdf(url: str, destino: Path, sha_esperado: str, limite: int) -> int:
     if not isinstance(sha_esperado, str) or not HASH.fullmatch(sha_esperado):
         raise Bloqueado("SHA-256 esperado e obrigatorio e deve vir de fonte confiavel")
@@ -181,6 +200,7 @@ def baixar_pdf(url: str, destino: Path, sha_esperado: str, limite: int) -> int:
         raise Bloqueado("Limite de tamanho invalido")
     conexao, caminho = _conexao(url)
     destino.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    _verificar_reserva_disco(destino.parent, limite)
     fd, tmp = tempfile.mkstemp(prefix=".pdf-parcial-", dir=destino.parent)
     quantidade = 0
     digest = hashlib.sha256()
@@ -199,6 +219,7 @@ def baixar_pdf(url: str, destino: Path, sha_esperado: str, limite: int) -> int:
                 quantidade += len(bloco)
                 if quantidade > limite:
                     raise Bloqueado("PDF ultrapassa limite permitido")
+                _verificar_reserva_disco(destino.parent, len(bloco))
                 if len(inicio) < 5:
                     inicio = (inicio + bloco)[:5]
                 final = (final + bloco)[-2048:]
