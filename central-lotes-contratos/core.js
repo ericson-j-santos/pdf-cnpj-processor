@@ -37,9 +37,8 @@ const LotesCore = (() => {
     if (!TIPOS.includes(tipo)) throw Error('Classificação de evento inválida.');
     if (!Number.isInteger(etapa) || etapa<0 || etapa>=ETAPAS.length) throw Error('Etapa inválida.');
     if (etapa > lote.etapa + 1) throw Error('Não é permitido saltar etapas.');
-    if (etapa === 5 || etapa === 8) {
-      if (tipo === 'ACAO_EFETIVA_INFORMADA') throw Error('Publicação ou encerramento não podem ser declarados efetivos sem integração e leitura independente.');
-    }
+    if (etapa >= 5 && tipo === 'ACAO_EFETIVA_INFORMADA') throw Error('Publicação ou encerramento não podem ser declarados efetivos sem integração e leitura independente.');
+    if (etapa >= 5 && etapa > lote.etapa) throw Error('Etapas de publicação, validação independente, replay e encerramento bloqueadas sem integração e prova externa.');
     const descricao = texto(info.descricao,700), responsavel=texto(info.responsavel,100);
     if (descricao.length<12 || !responsavel) throw Error('Descreva o fato (mínimo 12 caracteres) e informe o responsável.');
     const sha = texto(info.sha,64).toLowerCase();
@@ -71,18 +70,94 @@ const LotesCore = (() => {
     if (![limite,paralelismo,retry,backoff,teto].every(Number.isSafeInteger) || limite<1 || limite>1000 || paralelismo<1 || paralelismo>4 || retry<0 || retry>8 || backoff<1 || backoff>300 || teto<backoff || teto>3600) throw Error('Configuração fora dos limites seguros definidos.');
     return {limite,paralelismo,retry,backoff,teto,modo:'DRY_RUN',publicacao:'BLOQUEADA',dlq:true};
   }
+  const ESTADOS_LOTE = new Set(['RASCUNHO','REGISTRO_LOCAL','AGUARDANDO_HUMANO','BLOQUEADO','ARQUIVADO']);
+  // Uma planilha pode interpretar textos como fórmulas mesmo com aspas CSV.
+  function celulaCsv(valor) {
+    let v=String(valor ?? '');
+    if (/^[\s\uFEFF]*[=+\-@]/u.test(v) || /^[\t\r\n]/u.test(v)) v="'"+v;
+    return '"'+v.replaceAll('"','""')+'"';
+  }
   function validarImportacao(s) {
-    if (!s || s.schema!==1 || !Array.isArray(s.lotes) || !Array.isArray(s.eventos) || !s.config || !Array.isArray(s.links) || !s.scripts) throw Error('Arquivo de backup incompatível.');
-    if (s.lotes.length>MAX_ENTRADAS || s.eventos.length>10000 || s.links.length>1000) throw Error('Backup excede limites seguros.');
-    validarConfig(s.config);
-    const todos=[];
+    if (!s || typeof s!=='object' || Array.isArray(s) || s.schema!==1 ||
+        !Array.isArray(s.lotes) || !Array.isArray(s.eventos) ||
+        !Array.isArray(s.links) || !s.scripts || !s.config) throw Error('Arquivo de backup incompatível.');
+    if (!Number.isSafeInteger(s.rev) || s.rev<0 ||
+        !Number.isSafeInteger(s.totalEstimado) || s.totalEstimado<1 || s.totalEstimado>5_000_000)
+      throw Error('Versão ou estimativa de contratos inválida no backup.');
+    if (s.lotes.length>MAX_ENTRADAS || s.eventos.length>10000 || s.links.length>1000)
+      throw Error('Backup excede limites seguros.');
+    const c=s.config;
+    const esperado=validarConfig(c);
+    if (Object.keys(c).length!==Object.keys(esperado).length ||
+        Object.entries(esperado).some(([k,v])=>c[k]!==v))
+      throw Error('Configuração de backup tenta alterar limites ou liberar operação.');
+    if (typeof s.scripts!=='object' || Array.isArray(s.scripts) ||
+        !['sh','py'].every(k=>typeof s.scripts[k]==='string' && s.scripts[k].length<=100000) ||
+        typeof s.scripts.versao!=='string' || !/^[a-zA-Z0-9._-]{1,32}$/.test(s.scripts.versao))
+      throw Error('Scripts de backup inválidos ou acima do limite.');
+    const todos=[],ids=new Set();
     for (const l of s.lotes) {
-      const p=normalizarLote({inicio:l.inicio,fim:l.fim,origem:l.origem,destino:l.destino,responsavel:l.responsavel,limite:1000},todos);
-      if (!l.id || !l.chave || l.chave!==p.chave || typeof l.estado!=='string' || !Array.isArray(l.evidencias)) throw Error('Lote inválido no arquivo de backup.');
+      if (!l || typeof l!=='object' || Array.isArray(l)) throw Error('Lote malformado no backup.');
+      const p=normalizarLote({inicio:l.inicio,fim:l.fim,origem:l.origem,destino:l.destino,
+        responsavel:l.responsavel,limite:1000},todos);
+      if (typeof l.id!=='string' || !l.id || ids.has(l.id) ||
+          l.chave!==p.chave || !ESTADOS_LOTE.has(l.estado) ||
+          !Number.isSafeInteger(l.etapa) || l.etapa<0 || l.etapa>4 ||
+          !Array.isArray(l.evidencias) || l.evidencias.length>2000)
+        throw Error('Lote duplicado, inconsistente ou com avanço sem comprovação externa.');
+      ids.add(l.id);
+      atualizarQuantidades(l,{sucesso:l.informadosSucesso,falha:l.informadosFalha,tentativas:l.tentativas});
+      if (typeof l.checkpoint!=='string' || l.checkpoint.length>180)
+        throw Error('Checkpoint de lote inválido.');
+      for (const ev of l.evidencias) {
+        if (!ev || typeof ev!=='object' || !TIPOS.includes(ev.tipo) ||
+            ev.prova!=='DECLARACAO_LOCAL_NAO_VERIFICADA' ||
+            !Number.isSafeInteger(ev.etapa) || ev.etapa<0 || ev.etapa>l.etapa ||
+            typeof ev.descricao!=='string' || ev.descricao.length>700 ||
+            typeof ev.sha!=='string' || (ev.sha && !SHA_RE.test(ev.sha)))
+          throw Error('Evidência de lote incompatível: não é prova de execução externa.');
+      }
+      if (l.reconciliacao) {
+        const r=l.reconciliacao;
+        const esperadoR=conciliar(l,{...r,shaManifesto:r.shaManifesto});
+        if (r.prova!=='DECLARACAO_LOCAL_NAO_VERIFICADA' || r.status!==esperadoR.status ||
+            JSON.stringify(r.divergencias)!==JSON.stringify(esperadoR.divergencias))
+          throw Error('Reconciliação do backup contém comprovação ou divergência não validada.');
+      }
       todos.push(l);
+    }
+    const linksIds=new Set();
+    for (const l of s.links) {
+      if (!l || typeof l.id!=='string' || !l.id || linksIds.has(l.id) ||
+          typeof l.titulo!=='string' || !l.titulo.trim() || l.titulo.length>100 ||
+          typeof l.url!=='string' || l.url.length>2000 ||
+          !['NAO_TESTADO','FALHOU','ACESSIVEL'].includes(l.status))
+        throw Error('Link do backup inválido ou repetido.');
+      linksIds.add(l.id);
+      let u;
+      try { u=new URL(l.url); } catch (_) { throw Error('Endereço do backup inválido.'); }
+      if (u.protocol!=='https:' || u.username || u.password || !u.hostname)
+        throw Error('Link sem HTTPS ou contendo credenciais no backup.');
+    }
+    for (const e of s.eventos) {
+      if (!e || typeof e!=='object' || typeof e.id!=='string' ||
+          typeof e.tipo!=='string' || typeof e.mensagem!=='string' ||
+          typeof e.correlation_id!=='string' || typeof e.instante!=='string')
+        throw Error('Histórico de auditoria inválido no backup.');
     }
     return true;
   }
-  return {ETAPAS,TIPOS,TIPO_LABEL,SHA_RE,chave,normalizarLote,atualizarQuantidades,validarRegistro,estatisticas,validarConfig,validarImportacao,conciliar,texto,uuid};
+  function prepararImportacao(s) {
+    validarImportacao(s);
+    const copia=JSON.parse(JSON.stringify(s));
+    // Um HEAD positivo antigo não comprova acesso atual após a restauração.
+    for (const l of copia.links) {
+      l.status='NAO_TESTADO';
+      l.validadoEm='';
+      l.ultimaFalha='Restauração: é necessário testar novamente o acesso.';
+    }
+    return copia;
+  }
+  return {ETAPAS,TIPOS,TIPO_LABEL,SHA_RE,chave,normalizarLote,atualizarQuantidades,validarRegistro,estatisticas,validarConfig,validarImportacao,prepararImportacao,conciliar,celulaCsv,texto,uuid};
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = LotesCore;

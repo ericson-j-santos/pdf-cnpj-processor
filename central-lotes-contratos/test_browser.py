@@ -40,7 +40,7 @@ with sync_playwright() as p:
     page.locator('#nl-start').fill('1')
     page.locator('#nl-end').fill('200')
     page.locator('#nl-owner').fill('Operador de homologação')
-    page.locator('#nl-origin').fill('Origem de teste')
+    page.locator('#nl-origin').fill('=2+2')
     page.locator('#nl-target').fill('Destino de teste')
     page.locator('#new-lot-form button[type="submit"]').click()
     page.wait_for_timeout(400)
@@ -100,6 +100,30 @@ with sync_playwright() as p:
     import json
     obj=json.loads(snap.read_text())
     ok('backup JSON íntegro',len(obj['lotes'])==1 and obj['lotes'][0]['informadosSucesso']==3)
+    with page.expect_download() as d:
+        page.locator('#export-csv').click()
+    csv_path=ROOT/'teste-export.csv'
+    d.value.save_as(str(csv_path))
+    ok('CSV baixado neutraliza fórmulas da origem','\"\'=2+2\"' in csv_path.read_text(encoding='utf-8-sig'))
+    # Falhas importadas jamais podem afirmar publicação, conclusão ou acesso externo.
+    adulterado=json.loads(json.dumps(obj))
+    adulterado['lotes'][0]['estado']='CONCLUIDO'
+    caminho_adulterado=ROOT/'teste-importacao-recusada.json'
+    caminho_adulterado.write_text(json.dumps(adulterado),encoding='utf-8')
+    page.locator('#import-json').set_input_files(str(caminho_adulterado))
+    page.wait_for_timeout(230)
+    ok('backup adulterado negado no navegador','Importação negada' in page.locator('#toast').inner_text())
+    ok('lote permanece após importação rejeitada',page.locator('#k-cadastrados').inner_text()=='200')
+    confiavel=json.loads(json.dumps(obj))
+    confiavel['links']=[{'id':'verificacao-previa','titulo':'Manual de teste','url':'https://example.org/manual',
+                      'status':'ACESSIVEL','validadoEm':'2026-11-12T12:00:00.000Z','ultimaFalha':''}]
+    caminho_valido=ROOT/'teste-importacao-valida.json'
+    caminho_valido.write_text(json.dumps(confiavel),encoding='utf-8')
+    page.once('dialog',lambda d:d.accept('SUBSTITUIR'))
+    page.locator('#import-json').set_input_files(str(caminho_valido))
+    page.wait_for_timeout(350)
+    ok('link importado perde a falsa validação de acesso','NAO TESTADO' in page.locator('#link-list').inner_text())
+    ok('link importado não recebe acesso liberado',page.locator('#link-list a[href]').count()==0)
     with page.expect_download() as d:
         page.locator('#export-report').click()
     d.value.save_as(str(ROOT/'teste-relatorio.html'))

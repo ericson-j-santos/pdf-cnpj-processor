@@ -28,4 +28,32 @@ assert.equal(sem.status,'CONTAGENS_IGUAIS_INFORMADAS');
 assert.equal(sem.prova,'DECLARACAO_LOCAL_NAO_VERIFICADA');
 assert.throws(()=>c.conciliar(l,{origem:200,baixados:190,conferidos:190,internos:190,publicados:190}),/SHA-256/);
 assert.throws(()=>c.conciliar(l,{origem:1000,baixados:0,conferidos:0,internos:0,publicados:0}),/inválidas/);
-console.log('PASS 23 verificações de regras de negócio (inclui reconciliação positiva/negativa).');
+// Segurança do backup: prova e estado em JSON não equivalem a leitura independente.
+const config={limite:250,paralelismo:2,retry:3,backoff:2,teto:60,modo:'DRY_RUN',publicacao:'BLOQUEADA',dlq:true};
+const snapshot={schema:1,rev:1,totalEstimado:110000,lotes:[l],eventos:[],links:[],
+  scripts:{sh:'#!/bin/sh\nexit 0',py:'print(0)',versao:'0.1.0-local'},config};
+const dup=o=>JSON.parse(JSON.stringify(o));
+assert.equal(c.validarImportacao(snapshot),true);
+assert.throws(()=>c.validarImportacao({...snapshot,lotes:[{...l,estado:'CONCLUIDO'}]}),/Lote duplicado|Sobreposição/);
+assert.throws(()=>c.validarImportacao({...snapshot,lotes:[{...l,etapa:8}]}),/Lote duplicado|Sobreposição/);
+assert.throws(()=>c.validarImportacao({...snapshot,config:{...config,modo:'ENVIAR'}}),/Configuração de backup/);
+assert.throws(()=>c.validarImportacao({...snapshot,config:{...config,publicacao:'LIBERADA'}}),/Configuração de backup/);
+assert.throws(()=>c.validarImportacao({...snapshot,config:{...config,dlq:false}}),/Configuração de backup/);
+assert.throws(()=>c.validarImportacao({...snapshot,lotes:[{...l,informadosSucesso:251}]}),/excedem/);
+assert.throws(()=>c.validarImportacao({...snapshot,lotes:[l,{...l}]}),/Lote duplicado|Sobreposição/);
+assert.throws(()=>c.validarImportacao({...snapshot,lotes:[{...l,evidencias:[{etapa:0,tipo:'FATO_INFORMADO',prova:'EXTERNA',sha:''}]}]}),/Evidência/);
+assert.throws(()=>c.validarRegistro({tipo:'FATO_INFORMADO',etapa:5,descricao:'Publicação feita externamente',responsavel:'Pessoa',checkpoint:'cp'}, {...l,etapa:4}),/bloqueadas sem integração/);
+assert.throws(()=>c.validarImportacao({...snapshot,links:[{id:'x',titulo:'HTTP inseguro',url:'http://exemplo.org',status:'NAO_TESTADO'}]}),/Link sem HTTPS/);
+const fonte=dup(snapshot);
+fonte.links=[{id:'l1',titulo:'Lido ontem',url:'https://example.org/manual',status:'ACESSIVEL',validadoEm:new Date().toISOString()}];
+assert.equal(c.validarImportacao(fonte),true);
+const limpo=c.prepararImportacao(fonte);
+assert.equal(limpo.links[0].status,'NAO_TESTADO');
+assert.equal(limpo.links[0].validadoEm,'');
+assert.equal(fonte.links[0].status,'ACESSIVEL'); // original preservado
+assert.deepEqual(c.prepararImportacao(limpo),limpo); // replay idempotente
+assert.equal(c.celulaCsv('=1+2'),"\"'=1+2\"");
+assert.equal(c.celulaCsv('  @SUM(A1)'),"\"'  @SUM(A1)\"");
+assert.equal(c.celulaCsv('Origem segura'), '"Origem segura"');
+assert.equal(c.celulaCsv('A"B'), '"A""B"');
+console.log('PASS 44 verificações de regras de negócio (inclui restauração segura e CSV).');

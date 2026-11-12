@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feat/central-lotes-contratos-site-20261112
+      - fix/central-lotes-importacao-segura-20261112
     paths:
       - 'central-lotes-contratos/**'
       - '.github/workflows/central-lotes-ci.yml'

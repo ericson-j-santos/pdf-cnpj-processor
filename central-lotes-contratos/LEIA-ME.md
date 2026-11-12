@@ -56,3 +56,11 @@ Regras oficiais lidas em 12/11/2026: `ericson-j-santos/chatgpt-operational-rules
 
 ## Revisão 0.1.1 (GitHub)
 Python sem `assert` para controles de segurança, teste de execução `python -O`, checks de integridade HTML↔fontes e CI separada. A integração real dos servidores e a transição por `lote_id` continuam pendentes. Não ativar transferências/POST.
+
+## Importação de backup e prevenção de falso sucesso (revisão de segurança — 12/11/2026)
+
+- Backup JSON é dado **não confiável**: lote desconhecido, etapa após conferência sem comprovação, contagem fora do limite, sobreposição, chave duplicada, evidência declarada como externa, parâmetros operacionais liberados ou URL sem HTTPS são recusados.
+- Importação confirmada **substitui registros locais**, mas não pode afirmar que arquivos foram publicados nem que links continuam acessíveis. Links importados voltam a `NAO_TESTADO`; o operador deve refazer o teste.
+- Importar backup legítimo da versão anterior é permitido quando seus registros atendem aos critérios; backups com etapas avançadas anteriormente cadastradas, porém sem comprovação, são **bloqueados** em vez de automaticamente promovidos. Preserve o arquivo original para reconciliação responsável.
+- Exportação CSV neutraliza células iniciadas por símbolos de fórmula (`=`, `+`, `-`, `@`) para prevenir execução inesperada em planilhas.
+- O painel continua sem execução de transferência ou publicação real e o armazenamento local não é o checkpoint corporativo durável.
