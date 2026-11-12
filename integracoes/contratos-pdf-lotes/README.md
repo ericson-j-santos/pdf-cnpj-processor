@@ -1,65 +1,73 @@
-# Processamento de PDFs por lotes — modelo de integração
+# Fluxo de negócio por ID do lote — migração de contratos (110 mil no legado)
 
-**Estado:** protótipo de integração, **não homologado** contra os servidores reais.
+**Estado:** implementação de referência **não homologada**. O contrato de API documentado abaixo é **hipotético**. Não executar POST contra sistemas reais sem leitura do esquema oficial, homologação e autorização específica.
 
-O arquivo `script.sh` implementa **somente a etapa final**: associar documentos já validados e comprovadamente armazenados no servidor interno ao sistema de destino. Não baixa PDFs nem faz upload para o servidor interno. Essas etapas precisam produzir o manifesto de entrada.
+## Substituição da lógica anterior
 
-## Fluxo completo esperado
+A rotina anterior associava PDFs individualmente (`contrato_id/documento_id`). A nova rotina tem como unidade de negócio o **ID de lote**, e aplica a sequência fornecida no desenho:
 
-1. Inventariar os contratos a importar com identificadores estáveis; registrar o legado sem expor dados pessoais.
-2. Baixar o PDF via HTTPS para uma área temporária controlada; confirmar limite de tamanho, tipo PDF, legibilidade/estrutura (`qpdf --check` ou validador equivalente), regras de segurança, contrato correto e SHA-256 da origem, quando disponível.
-3. Enviar o arquivo ao servidor interno, usando chave idempotente; ler novamente os metadados/hashes no servidor e registrar `INTERNO_CONFIRMADO`.
-4. Criar `manifesto.tsv` com **uma linha por documento validado**, incluindo `contrato_id`, `documento_id` e `sha256` (três campos separados por TAB). O mesmo contrato pode ter vários PDFs.
-5. Executar `script.sh` em lotes. Antes do POST, o script consulta o destino e a prova de armazenamento interno. Depois do POST, consulta novamente o destino; somente a associação correta com hash correspondente vira `CONFIRMADO`.
-6. Reconciliar as respostas incertas por consulta antes de permitir qualquer repetição. Analisar rejeições, documentar e autorizar correção pontual do registro.
+1. Receber `lote_id`.
+2. Verificar o lote em `dbo.conte_lote` (a API oficial deverá confirmar consulta real, contagem positiva de contratos e validade do lote).
+3. Confirmar **associação 214**.
+4. Confirmar **workflow 181**.
+5. Confirmar **etapa de origem 501**.
+6. Solicitar ao **motor de negócio oficial** a execução da função **`fn_g1865`** (grafia da imagem; confirmar nome e assinatura no sistema).
+7. Reconsultar e confirmar **nova etapa de destino**, identificador da operação e resultado da função. A etapa de destino **não é inventada**.
 
-## Contratos de API **hipotéticos** (devem ser adaptados)
+O download, verificação de PDFs e armazenamento interno continuam como fluxo de preparação **separado**, que deverá estar concluído antes da transição efetiva quando as regras corporativas assim exigirem. Este script **não baixa PDF e não faz upload de PDF**.
 
-- `GET https://<interno>/documentos/{documento_id}` retorna JSON com `contrato_id`, `documento_id`, `sha256`, `estado="VALIDADO"`.
-- `GET https://<destino>/contratos/{contrato_id}/documentos/{documento_id}` retorna JSON com `contrato_id`, `documento_id`, `sha256`, `estado="ASSOCIADO"`, ou HTTP 404 quando realmente ausente.
-- `POST https://<destino>/contratos/{contrato_id}/documentos` aceita JSON `{"documento_id":"...","sha256":"..."}` e cabeçalho `Idempotency-Key`, cujo comportamento **precisa ser efetivamente suportado pelo servidor**. O destino também deve impedir duplicação por chave única de negócio.
+## Entrada e volume
 
-Se a API exigir transferência física do PDF (multipart) em vez de associação por `documento_id`, adaptar o POST sem alterar o estado e os critérios de readback.
+`lotes.tsv` contém `lote_id` na primeira linha e um ID por linha a seguir. O limite `LIMITE_LOTES=250` significa **até 250 IDs de lote por execução**, não 250 contratos nem 250 PDFs. Um mesmo lote pode conter vários contratos. O universo de 110 mil contratos exige inventário e reconciliação por lote/contrato antes de qualquer migração real.
 
-## Pré-requisitos
+## Proposta de adaptador API (não confirmada)
 
-Bash, `curl`, `jq`, `awk`, `flock`, `sha256sum`, manifesto íntegro, disco com persistência, TLS, credenciais de escopo mínimo fornecidas via cofre e **custo incremental de R$ 0,00 comprovado fora do script**. A flag `CUSTO_ZERO_VALIDADO=SIM` é só um bloqueio operacional, não substitui prova financeira.
+É necessário um serviço interno autorizado que realize as consultas transacionais corretas no SQL Server e acione o mecanismo de workflow sem alterar indevidamente dados. Os campos abaixo são um **contrato a homologar**, e não endpoints que já existam:
 
-Exemplo de configuração (substitua URLs; **não coloque tokens em scripts ou no terminal compartilhado**):
+- `GET /lotes/{lote_id}/transicao`: `{ "lote_id":"LOTE_TESTE_001", "estado":"NAO_APLICADA" }` ou, quando aplicada, `{ "lote_id":"LOTE_TESTE_001", "estado":"APLICADA", "associacao_id":214, "workflow_id":181, "etapa_origem_id":501, "funcao_nome":"fn_g1865", "funcao_executada":true, "etapa_destino_id":777, "registro_id":"RECIBO_TESTE" }`. **777 é só valor de teste**; não se conhece a etapa real.
+- `GET /lotes/{lote_id}/contexto`: `{ "lote_id":"LOTE_TESTE_001", "conte_lote": {"encontrado":true,"valido":true,"quantidade_contratos":2}, "associacao_id":214, "workflow_id":181, "etapa_atual_id":501, "funcao_nome":"fn_g1865", "funcao_habilitada":true }`.
+- `POST /lotes/{lote_id}/transicao`: aceita lote e IDs de associação/workflow/origem/função. O **backend** deve validar novamente sob bloqueio transacional, chamar a função pela assinatura oficial e gravar o resultado de forma **atômica e idempotente**, respeitando a chave `Idempotency-Key` e evitando execução duplicada.
+
+Esses dados de GET **não autorizam** o POST por si só. O adaptador deve validar se PDFs e contratos do lote estão íntegros, quando isso for uma condição do negócio. O resultado de um POST só é reconhecido depois de GET independente com recibo/etapa de destino e prova de função executada.
+
+## Execução (somente após adaptar os endpoints)
+
+Requisitos: Python 3, Bash, HTTPS com certificado válido, `API_NEGOCIO_URL` e `TOKEN_NEGOCIO` provenientes de configuração/cofre seguro, estado persistido em diretório protegido, mesmo executor para os testes e custo adicional zero confirmado fora do script.
 
 ```bash
-export API_INTERNA_URL="https://interno.exemplo/api"
-export API_DESTINO_URL="https://destino.exemplo/api"
-# TOKEN_INTERNO e TOKEN_DESTINO: injetar via gerenciador de segredos
-export CUSTO_ZERO_VALIDADO="SIM" # apenas quando comprovado
-export MANIFESTO="/caminho/protegido/manifesto.tsv"
-export ESTADO_DIR="/caminho/persistente/estado"
-LOTE=250 MODO=ENVIAR bash script.sh
-LOTE=250 MODO=RECONCILIAR bash script.sh  # nao efetua POST
+export API_NEGOCIO_URL="https://integracao-interna.exemplo/api"  # ilustrativo
+# TOKEN_NEGOCIO: apenas por cofre/ambiente protegido
+export MANIFESTO_LOTES="/caminho/protegido/lotes.tsv"
+export ESTADO_DIR="/caminho/persistente/estado-lotes"
+LIMITE_LOTES=10 MODO=VALIDAR bash script.sh  # padrão: não faz POST
+LIMITE_LOTES=10 MODO=RECONCILIAR bash script.sh  # somente consulta de incertos
 ```
 
-**Não execute isso contra sistemas reais sem autorização e homologação**. Por segurança, HTTPS remoto é obrigatório. Nunca desative validação de certificados. As credenciais no ambiente/argumentos de processo requerem gestão de segredos e avaliação de exposição no host.
+**POST permanece bloqueado** sem as três condições externas independentes: `AUTORIZACAO_POST=SIM`, `CONTRATO_API_HOMOLOGADO=SIM`, `CUSTO_ZERO_VALIDADO=SIM`. Essas variáveis são barreiras locais e **não comprovam** as respectivas autorizações ou custos. Somente após aprovação real documentada e validação E2E em homologação:
 
-## Estados
+```bash
+LIMITE_LOTES=10 MODO=ENVIAR bash script.sh
+```
 
-- `CONFIRMADO`: associação presente no sistema de destino com contrato, documento e SHA corretos.
-- `TRANSITORIO`: falha de consulta anterior ao POST; pode tentar novamente com segurança na próxima execução.
-- `INCERTO`: POST potencialmente aceito sem confirmação final; **não repetir automaticamente**. Executar a reconciliação somente leitura.
-- `BLOQUEADO`: dado inválido, hash divergente, erro de autenticação ou rejeição que exige análise/correção.
+## Segurança, estados e retomada
 
-O controle usa um `estado/estado.tsv` local, mantido sob `flock`. Ele é adequado para **piloto em um executor e um volume moderado**, mas para operação contínua com 110 mil contratos, vários processos ou mais de um host deve ser substituído por uma tabela transacional (por exemplo, SQL Server), com `UNIQUE(contrato_id, documento_id, sha256)`, lease, versão da linha, histórico de tentativas e checkpoint durável. Backup do journal é obrigatório enquanto ele for a fonte de estado.
+- `APTO`: comprovou configuração do lote em consultas; não significa transição.
+- `CONFIRMADO`: leitura do destino prova etapa nova e resultado, com associação/workflow/função/recibo compatíveis.
+- `TRANSITORIO`: falha antes do POST; pode consultar novamente.
+- `INCERTO`: POST com resposta perdida/ambígua; não repetir automaticamente, usar `RECONCILIAR`.
+- `BLOQUEADO`: consulta/contrato inválido; corrigir causa, sem alterar `estado.jsonl` manualmente.
 
-Recomenda-se iniciar com 10 documentos de teste, depois 100, depois 250, medindo taxa, respostas 429/503, tempo, tamanho, consumo de disco e limites das APIs antes de aumentar. **250 contratos por lote não significa um POST único com 250 PDFs**.
+O `estado.jsonl` é um diário local com gravação confirmada em disco e trava `flock`; preservá-lo com backups. **Não é apropriado para vários computadores concorrentes** ou 110 mil contratos em operação distribuída. Para isso, usar tabela transacional durável com chave única de lote + versão de processo, reserva exclusiva, histórico, idempotência no servidor e retomada após falha.
 
-## Testes locais
+**Sem Docker. Sem segredos no repositório. Custo incremental máximo R$ 0,00.** Bloquear quando custo/contrato real não estiverem demonstrados.
+
+## Testes e aceite
 
 ```bash
 bash -n script.sh
-python3 test_script.py
+python3 -m unittest -v test_fluxo_lotes.py
 ```
 
-Os testes usam um cliente HTTP **simulado**: lote de 1, retomada, múltiplos documentos no mesmo contrato, erro de rede após POST, SHA divergente, indisponibilidade, rejeição/autorização, manifesto duplicado e custo desconhecido. Os testes não validam o sistema de destino real.
+Testes locais simulam as respostas do serviço. Não comprovam a existência dos endpoints, da tabela/colunas, a assinatura de `fn_g1865`, o vínculo entre os PDFs e o lote, a etapa de destino real ou a operação física no SQL Server/sistema.
 
-## Critério de aceite de produção
-
-PDF validado e íntegro na origem; armazenamento interno confirmado por fonte independente; POST com idempotência real; associação persistida no sistema de destino e comprovada por leitura independente (incluindo ID, hash e contrato); tratamento de erro e replay sem duplicidade; teste de rejeição; backup/rollback e custo incremental zero.
+Antes de operação real, obter evidência do esquema `dbo.conte_lote`, natureza da associação 214, workflow 181, estágio 501, assinatura/efeitos de `fn_g1865`, política da etapa de destino, transação/idempotência, credenciais de menor privilégio e dois cenários de homologação (sucesso e falha) com leitura independente e registro de quantidade de contratos migrados.
