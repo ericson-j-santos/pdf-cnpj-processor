@@ -212,6 +212,22 @@ class PilotoHTTPReal(unittest.TestCase):
         with self.assertRaisesRegex(Bloqueado, "malformado"):
             list(ler_ndjson([b'{"evento":1,"evento":2}\n']))
 
+    def test_ndjson_muitos_eventos_validos_num_unico_fragmento(self):
+        # Recepcao em massa e valida: limite aplica-se por linha, nao por chunk.
+        fragmento = b"".join(
+            evento("upload", "confirmado", "C001", numero).encode("utf-8")
+            for numero in range(3000)
+        )
+        self.assertGreater(len(fragmento), 256 * 1024)
+        eventos = list(ler_ndjson([fragmento]))
+        self.assertEqual(len(eventos), 3000)
+        self.assertEqual(eventos[-1]["bytes"], 2999)
+
+    def test_ndjson_linha_unica_gigante_bloqueada(self):
+        linha_invalida = b'{"conteudo":"' + b"A" * (16 * 1024) + b'"}\n'
+        with self.assertRaisesRegex(Bloqueado, "longa"):
+            list(ler_ndjson([linha_invalida[:1000], linha_invalida[1000:]]))
+
     def test_pdfs_nao_sao_publicados_no_fluxo_de_negocio(self):
         self.processar()
         self.assertEqual(self.estado.puts, 1)

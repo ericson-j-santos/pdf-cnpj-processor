@@ -60,25 +60,37 @@ def evento(fase: str, estado: str, correlacao: str, quantidade: int = 0) -> str:
 
 
 def ler_ndjson(fragmentos):
-    """Reconstrói linhas JSON válidas quando a rede divide/junta blocos."""
-    pendente = b""
+    """Processa linhas conforme chegam; limita a LINHA, nao o lote de rede.
+
+    Um fragmento HTTP pode conter milhares de linhas NDJSON validas.
+    O buffer retido entre eventos nunca ultrapassa 16 KiB.
+    """
+    pendente = bytearray()
     for fragmento in fragmentos:
         if not isinstance(fragmento, bytes):
             raise Bloqueado("Fragmento NDJSON deve ser bytes")
-        pendente += fragmento
-        if len(pendente) > 256 * 1024:
-            raise Bloqueado("Buffer NDJSON excedeu limite")
-        while b"\n" in pendente:
-            linha, pendente = pendente.split(b"\n", 1)
-            if not linha or len(linha) > 16 * 1024:
+        inicio = 0
+        while inicio < len(fragmento):
+            fim = fragmento.find(b"\n", inicio)
+            if fim < 0:
+                if len(pendente) + (len(fragmento) - inicio) > 16 * 1024:
+                    raise Bloqueado("Linha NDJSON muito longa")
+                pendente.extend(memoryview(fragmento)[inicio:])
+                break
+            if len(pendente) + (fim - inicio) > 16 * 1024:
+                raise Bloqueado("Linha NDJSON vazia ou muito longa")
+            pendente.extend(memoryview(fragmento)[inicio:fim])
+            if not pendente:
                 raise Bloqueado("Linha NDJSON vazia ou muito longa")
             try:
-                pares = json.loads(linha.decode("utf-8"), object_pairs_hook=_pares_unicos)
+                pares = json.loads(pendente.decode("utf-8"), object_pairs_hook=_pares_unicos)
             except (UnicodeDecodeError, ValueError, TypeError) as exc:
                 raise Bloqueado("Evento NDJSON malformado") from exc
             if not isinstance(pares, dict):
                 raise Bloqueado("Evento NDJSON deve ser objeto")
             yield pares
+            pendente.clear()
+            inicio = fim + 1
     if pendente:
         raise Bloqueado("Evento NDJSON incompleto no final do fluxo")
 
