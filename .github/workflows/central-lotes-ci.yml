@@ -1,16 +1,20 @@
 name: Contratos legados - site e preflight
 on:
+  # Check exigível não pode depender de filtros de path/branch no PR.
+  pull_request:
+  merge_group:
   push:
     branches:
+      - main
       - feat/central-lotes-contratos-site-20261112
       - fix/central-lotes-importacao-segura-20261112
+      - fix/central-lotes-ci-obrigatoria-20261112
     paths:
       - 'central-lotes-contratos/**'
       - '.github/workflows/central-lotes-ci.yml'
-  pull_request:
-    paths:
-      - 'central-lotes-contratos/**'
-      - '.github/workflows/central-lotes-ci.yml'
+      - 'scripts/central_lotes_escopo.py'
+      - 'tests/test_central_lotes_gate.py'
+      - 'governanca/pdf-cnpj-main-ruleset-proposta.json'
 permissions:
   contents: read
 concurrency:
@@ -22,12 +26,26 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Verificar versões
+        with:
+          fetch-depth: 0
+      - name: Check obrigatório — escopo, segurança, regressão e E2E
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          REF_CREATED: ${{ github.event.created || 'false' }}
+        shell: bash
         run: |
-          python3 --version
-          node --version
-      - name: Sintaxe e preflight negativo
-        run: |
+          set -euo pipefail
+          # Este passo SEMPRE executa. Não há job/step de testes ignorado via if:.
+          python3 -m unittest discover -s tests -p 'test_central_lotes_gate.py' -v
+          ESCOPO="$(python3 scripts/central_lotes_escopo.py --base "$BASE_SHA" --head "$GITHUB_SHA" --event "$GITHUB_EVENT_NAME" --created "$REF_CREATED")"
+          if [[ "$ESCOPO" == 'NAO_APLICAVEL' ]]; then
+            echo 'NAO_APLICAVEL: nenhuma fonte de contratos existe ou foi alterada; prova pelo Git e testes do gate passaram.'
+            exit 0
+          fi
+          if [[ "$ESCOPO" != 'APLICAVEL' ]]; then
+            echo 'BLOQUEADO: decisão de escopo desconhecida.' >&2
+            exit 1
+          fi
           cd central-lotes-contratos
           bash -n script.sh
           python3 -m py_compile processar_contratos.py test_preflight.py test_bundle_static.py test_browser.py
@@ -35,22 +53,12 @@ jobs:
           node --check core.js
           node --check test_core.js
           if python3 processar_contratos.py --config config.exemplo.json; then
-            echo 'ERRO: operação sem --preflight foi aceita'
+            echo 'BLOQUEADO: execução sem --preflight indevidamente aceita.' >&2
             exit 1
           fi
-      - name: Regras de negócio, preflight e consistência
-        run: |
-          cd central-lotes-contratos
           node test_core.js
           python3 -m unittest test_preflight test_bundle_static -v
-      - name: Preparar navegador de teste sem Docker
-        run: |
           python3 -m venv "$RUNNER_TEMP/lotes-venv"
           "$RUNNER_TEMP/lotes-venv/bin/python" -m pip install --disable-pip-version-check 'playwright==1.57.0'
           "$RUNNER_TEMP/lotes-venv/bin/python" -m playwright install --with-deps chromium
-      - name: Teste real da interface por HTTP e persistência
-        env:
-          STRICT_BROWSER_E2E: '1'
-        run: |
-          cd central-lotes-contratos
-          "$RUNNER_TEMP/lotes-venv/bin/python" test_browser.py
+          STRICT_BROWSER_E2E=1 "$RUNNER_TEMP/lotes-venv/bin/python" test_browser.py
