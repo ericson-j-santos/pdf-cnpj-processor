@@ -1,0 +1,55 @@
+name: Contratos legados - site e preflight
+on:
+  push:
+    branches:
+      - feat/central-lotes-contratos-site-20261112
+    paths:
+      - 'central-lotes-contratos/**'
+      - '.github/workflows/central-lotes-ci.yml'
+  pull_request:
+    paths:
+      - 'central-lotes-contratos/**'
+      - '.github/workflows/central-lotes-ci.yml'
+permissions:
+  contents: read
+concurrency:
+  group: central-lotes-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Verificar versões
+        run: |
+          python3 --version
+          node --version
+      - name: Sintaxe e preflight negativo
+        run: |
+          cd central-lotes-contratos
+          bash -n script.sh
+          python3 -m py_compile processar_contratos.py test_preflight.py test_bundle_static.py test_browser.py
+          node --check app.js
+          node --check core.js
+          node --check test_core.js
+          if python3 processar_contratos.py --config config.exemplo.json; then
+            echo 'ERRO: operação sem --preflight foi aceita'
+            exit 1
+          fi
+      - name: Regras de negócio, preflight e consistência
+        run: |
+          cd central-lotes-contratos
+          node test_core.js
+          python3 -m unittest test_preflight test_bundle_static -v
+      - name: Preparar navegador de teste sem Docker
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lotes-venv"
+          "$RUNNER_TEMP/lotes-venv/bin/python" -m pip install --disable-pip-version-check 'playwright==1.57.0'
+          "$RUNNER_TEMP/lotes-venv/bin/python" -m playwright install --with-deps chromium
+      - name: Teste real da interface por HTTP e persistência
+        env:
+          STRICT_BROWSER_E2E: '1'
+        run: |
+          cd central-lotes-contratos
+          "$RUNNER_TEMP/lotes-venv/bin/python" test_browser.py

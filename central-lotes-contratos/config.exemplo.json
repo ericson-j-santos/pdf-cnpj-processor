@@ -1,0 +1,10 @@
+{
+  "limite": 250,
+  "paralelismo": 2,
+  "retry": 3,
+  "backoff": 2,
+  "teto": 60,
+  "modo": "DRY_RUN",
+  "publicacao": "BLOQUEADA",
+  "dlq": true
+}

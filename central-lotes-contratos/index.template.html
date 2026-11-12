@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light">
+<meta name="description" content="Painel local de acompanhamento governado de contratos legados, sem publicação ou transferências automáticas.">
+<title>Central de Lotes | Contratos Legados</title>
+<style>
+/*INLINE_CSS*/
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar" aria-label="Navegação principal">
+  <div class="brand"><div class="logo" aria-hidden="true">▦</div><div><strong>Contratos</strong><small>CENTRAL DE LOTES</small></div></div>
+  <nav aria-label="Seções">
+    <button class="navbtn active" data-to="overview"><span class="ni">◫</span>Visão geral</button>
+    <button class="navbtn" data-to="lotes"><span class="ni">▤</span>Fila de lotes</button>
+    <button class="navbtn" data-to="workflow"><span class="ni">⬡</span>Fluxo operacional</button>
+    <button class="navbtn" data-to="scripts"><span class="ni">⌘</span>Scripts e limites</button>
+    <button class="navbtn" data-to="audit"><span class="ni">◷</span>Auditoria e relatórios</button>
+    <button class="navbtn" data-to="security"><span class="ni">♧</span>Segurança e operação</button>
+  </nav>
+  <div class="sidebar-bottom"><span class="sb-tag">● GOVERNANÇA ATIVA</span><div class="sb-desc">Sem Docker · custo adicional R$ 0,00<br>Sem transferências automáticas<br>Regras oficiais: v1.6.21</div></div>
+</aside>
+<main class="main">
+ <header class="topbar"><div><div class="eyebrow">GESTÃO DE CONTRATOS LEGADOS</div><div class="top-title" id="top-title">Visão geral</div></div><div class="top-right"><span class="pill green">● MODO LEITURA EXTERNA</span><span class="pill red">PUBLICAÇÃO BLOQUEADA</span><span id="persist-status" class="pill amber">CARREGANDO</span></div></header>
+ <div id="storage-warning" class="notice" role="alert" hidden style="margin-top:15px"><strong>Armazenamento do navegador indisponível</strong>Alterações feitas nesta sessão podem desaparecer ao fechar a página. Exporte seu checkpoint JSON.</div>
+ <section class="page active" data-page="overview" aria-label="Visão geral">
+  <h1>Operação sob controle.</h1><p class="sub">Acompanhe o legado sem confundir registros informados com arquivos comprovadamente publicados.</p>
+  <div class="hero"><div><span class="code">CENTRAL OPERACIONAL · AMBIENTE LOCAL</span><h2>110 mil contratos. Um fluxo rastreável.</h2><p>Organize lotes, registre evidências, mantenha checkpoints e prepare relatórios — sem executar downloads, uploads ou publicações indevidas.</p></div><div class="hero-art" aria-hidden="true">≋</div></div>
+  <div class="kpis"><div class="kpi"><div class="kpi-label">Legado estimado</div><div class="kpi-number kpi-navy" id="k-total">110.000</div><div class="kpi-foot">Referência, não inventário conferido</div></div><div class="kpi"><div class="kpi-label">Contratos em lotes</div><div class="kpi-number kpi-green" id="k-cadastrados">0</div><div class="kpi-foot">Cadastro local, não processados</div></div><div class="kpi"><div class="kpi-label">Sucessos informados</div><div class="kpi-number kpi-amber" id="k-informados">0</div><div class="kpi-foot">Declaração do operador</div></div><div class="kpi"><div class="kpi-label">Publicações comprovadas</div><div class="kpi-number kpi-red" id="k-comprovados">0</div><div class="kpi-foot">Aguardando validação externa</div></div></div>
+  <div class="grid2">
+   <div class="panel"><div class="panel-head"><div><h2>Cobertura do legado</h2><p>Quantos contratos estão organizados em intervalos únicos</p></div><span class="pill grey"><span id="k-lotes">0</span> lotes</span></div><div class="progress-track" role="progressbar" aria-label="Cobertura cadastrada" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" id="pct-fill"></div></div><div class="progress-meta"><span id="pct-text">0% cadastrado</span><span>Meta estimada: 100%</span></div><hr class="divider"><div class="btnrow" style="justify-content:space-between"><span class="key">No painel: <strong id="cobertos">0</strong></span><span class="key">Ainda sem cadastro: <strong id="restantes">110.000</strong></span></div></div>
+   <div class="panel"><div class="panel-head"><div><h2>Próxima ação com maior efeito</h2><p>Integração real ainda não foi autorizada e validada</p></div><span class="status pending">PENDENTE</span></div><div class="notice"><strong>Confirmar integrações em homologação</strong>Os endereços de origem, destino e publicação, as regras de conferência e as permissões precisam ser validados fora deste navegador antes de transferir qualquer PDF.</div><div class="btnrow" style="margin-top:16px"><button class="btn primary" data-action="new">+ Criar primeiro lote</button><button class="btn" onclick="document.querySelector('[data-to=security]').click()">Ver critérios</button></div></div>
+  </div>
+  <div class="panel"><div class="row-head"><div><h2>Fila recente</h2><p class="note" style="margin:2px 0">O painel começa vazio para não apresentar números fictícios como reais.</p></div><button class="btn sm" onclick="document.querySelector('[data-to=lotes]').click()">Ver todos</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Identificador</th><th>Intervalo</th><th>Estado</th><th>Etapa informada</th><th>Responsável</th><th>Atualização</th><th>Ação</th></tr></thead><tbody id="overview-body"></tbody></table></div><div id="overview-empty" class="empty"><div class="empty-symbol">▤</div><h3>Nenhum lote cadastrado</h3><p>Crie lotes reais ou carregue exemplos claramente identificados como fictícios.</p><div class="btnrow"><button class="btn primary" data-action="new">+ Novo lote</button><button class="btn" id="demo-fill">Carregar exemplo fictício</button></div></div></div>
+ </section>
+ <section class="page" data-page="lotes" aria-label="Fila de lotes">
+  <div class="section-heading"><div><h1>Fila de processamento</h1><p class="sub">Cada intervalo possui responsável, uma chave contra duplicação e histórico próprio.</p></div><button class="btn primary" data-action="new">+ Novo lote</button></div>
+  <div class="panel"><div class="toolbar"><div class="field" style="min-width:min(340px,100%)"><label for="buscar-lote">Localizar por intervalo, origem, responsável ou estado</label><input id="buscar-lote" placeholder="Buscar lote..."></div><span class="pill grey" id="lots-count">0 lote(s)</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Identificador</th><th>Intervalo</th><th>Estado</th><th>Etapa informada</th><th>Responsável</th><th>Atualização</th><th>Ação</th></tr></thead><tbody id="lots-body"></tbody></table></div><div class="empty" id="lots-empty"><div class="empty-symbol">▤</div><h3>Fila vazia</h3><p>Crie lotes com intervalos sem sobreposição. Limite de até 1.000 contratos por lote.</p></div></div>
+  <div class="grid2" style="margin-top:18px"><div class="panel"><h2>Proteção contra perda ou duplicação</h2><div class="checklist" style="margin-top:14px"><div class="check">Intervalos de lotes ativos não podem se sobrepor.</div><div class="check">Cada lote recebe chave determinística de idempotência.</div><div class="check">Histórico é preservado ao arquivar; não há exclusão por botão.</div><div class="check off">A garantia entre vários computadores exige banco e trava exclusivos no servidor.</div></div></div><div class="panel"><h2>Significado dos estados</h2><div class="list-info" style="margin-top:15px"><div class="info-line"><span class="info-dot grey"></span>Rascunho: ainda não há execução declarada.</div><div class="info-line"><span class="info-dot"></span>Registro local: andamento informado, não verificado externamente.</div><div class="info-line"><span class="info-dot"></span>Bloqueado: erro ou falha exige tratamento.</div><div class="info-line"><span class="info-dot green"></span>Comprovação real: indisponível até ativar integração independente.</div></div></div></div>
+ </section>
+ <section class="page" data-page="workflow" aria-label="Fluxo operacional">
+  <h1>Fluxo por lote</h1><p class="sub">O andamento é registrado, mas não realiza ações nos servidores. Nenhuma etapa se torna prova independente por preenchimento manual.</p>
+  <div class="panel"><div class="toolbar"><div class="field" style="width:min(440px,100%)"><label for="workflow-lot">Selecione o lote</label><select id="workflow-lot"><option value="">Selecione um lote…</option></select></div><span class="pill amber" id="flow-current">Nenhum lote selecionado</span></div><div class="flowline" id="step-line"></div><p class="note">Preflight = conferência prévia sem alterar arquivos. Replay seguro = repetição sem duplicar. As etapas aparecem como planejamento/registro, não como execução comprovada.</p></div>
+  <div id="selected-summary" class="panel softbox" style="margin-top:17px" hidden></div>
+  <div id="evidence-block" hidden>
+   <div class="grid2" style="margin-top:17px;grid-template-columns:1.15fr 1fr"><div class="panel"><div class="panel-head"><div><h2>Registrar evento e checkpoint</h2><p>Classifique o que aconteceu; não converta diagnóstico em sucesso.</p></div></div>
+    <form id="event-form" class="formgrid"><div class="field"><label for="ev-etapa">Etapa</label><select id="ev-etapa" name="etapa" required></select></div><div class="field"><label for="ev-tipo">Classificação</label><select id="ev-tipo" name="tipo" required><option value="FATO_INFORMADO">Fato informado</option><option value="FALHA_VALIDACAO">Falha de validação</option><option value="ERRO_TRANSITORIO">Erro transitório</option><option value="ERRO_DEFINITIVO">Erro definitivo / fila de exceções</option><option value="ACAO_HUMANA">Depende de ação humana</option><option value="DIAGNOSTICO_SEM_EFEITO">Diagnóstico sem efeito</option><option value="ACAO_EFETIVA_INFORMADA">Ação efetiva informada (não comprovada)</option></select></div><div class="field full"><label for="ev-descricao">Descrição objetiva do que foi observado</label><textarea id="ev-descricao" name="descricao" minlength="12" maxlength="700" required placeholder="Ex.: conferência de documentos reprovou 3 arquivos por assinatura inválida"></textarea></div><div class="field"><label for="ev-responsavel">Responsável</label><input id="ev-responsavel" name="responsavel" maxlength="100" required></div><div class="field"><label for="ev-sha">SHA-256 do arquivo ou execução (se houver)</label><input id="ev-sha" name="sha" maxlength="64" placeholder="64 caracteres hexadecimais"></div><div class="field"><label for="ev-checkpoint">Checkpoint externo (obrigatório ao avançar)</label><input id="ev-checkpoint" name="checkpoint" maxlength="180" placeholder="ID de registro persistente"></div><div class="field"><label for="ev-referencia">Identificador da evidência (não comprovada)</label><input id="ev-referencia" name="referencia" maxlength="240" placeholder="ID, ticket, identificador externo"></div><div class="full btnrow"><button class="btn primary" type="submit">Registrar declaração e histórico</button><button class="btn danger" type="button" id="archive-lot">Arquivar lote</button></div></form>
+   </div><div class="panel"><div class="panel-head"><div><h2>Atualizar contagens informadas</h2><p>Não são contagens publicadas e validadas.</p></div></div><form id="quantity-form" class="formgrid cols3"><div class="field"><label for="q-sucesso">Sucessos</label><input id="q-sucesso" type="number" min="0" step="1" required></div><div class="field"><label for="q-falha">Falhas</label><input id="q-falha" type="number" min="0" step="1" required></div><div class="field"><label for="q-tentativas">Retries</label><input id="q-tentativas" type="number" min="0" step="1" required></div><div class="full"><button class="btn" type="submit">Salvar contagens declaradas</button></div></form><hr class="divider"><div class="notice blue"><strong>Portão de aprovação externa</strong>Para liberar publicação, é necessário verificar identidade do executor, integridade SHA-256, evidência real dos servidores, autorização explícita e conferência independente. Este site, isoladamente, não abre esse portão.</div></div></div>
+   <div class="panel" style="margin-bottom:16px"><div class="panel-head"><div><h2>Reconciliação de arquivos por etapa</h2><p>Compare números declarados pela origem e pelo destino. Diferenças bloqueiam o lote; contagens iguais ainda não provam integridade.</p></div><span class="pill amber">SEM READBACK EXTERNO</span></div><form id="reconciliation-form"><div class="formgrid cols3"><div class="field"><label for="rec-origem">PDFs na origem</label><input type="number" min="0" step="1" id="rec-origem" required></div><div class="field"><label for="rec-baixados">Baixados</label><input type="number" min="0" step="1" id="rec-baixados" required></div><div class="field"><label for="rec-conferidos">Conferidos</label><input type="number" min="0" step="1" id="rec-conferidos" required></div><div class="field"><label for="rec-internos">No servidor interno</label><input type="number" min="0" step="1" id="rec-internos" required></div><div class="field"><label for="rec-publicados">Publicados informados</label><input type="number" min="0" step="1" id="rec-publicados" required></div><div class="field"><label for="rec-sha">SHA-256 do manifesto informado</label><input id="rec-sha" maxlength="64" placeholder="64 caracteres" aria-describedby="rec-resultado"></div></div><div class="btnrow" style="margin-top:13px"><button class="btn" type="submit">Comparar contagens informadas</button></div></form><div class="mini-code" style="margin-top:13px" id="rec-resultado">Nenhuma reconciliação registrada.</div></div>
+   <div class="panel"><div class="row-head"><h2>Evidências e logs do lote</h2><span class="pill amber">Autodeclarados</span></div><div id="evidencias-lote"></div></div>
+  </div>
+ </section>
+ <section class="page" data-page="scripts" aria-label="Scripts e configuração">
+  <h1>Scripts e limites de execução</h1><p class="sub">Cadastre versões reutilizáveis sem guardar senhas. Salvar ou baixar um script não o executa.</p>
+  <div class="grid2"><div class="panel"><div class="panel-head"><div><h2>Configuração conservadora</h2><p>Alterações aplicadas somente às regras de cadastro deste painel.</p></div><span class="pill green">DRY-RUN FIXO</span></div><div class="config-card"><div class="field"><label for="cfg-limite">Contratos por lote</label><input id="cfg-limite" type="number" min="1" max="1000"></div><div class="field"><label for="cfg-paralelismo">Execuções paralelas</label><input id="cfg-paralelismo" type="number" min="1" max="4"></div><div class="field"><label for="cfg-retry">Máximo de tentativas</label><input id="cfg-retry" type="number" min="0" max="8"></div><div class="field"><label for="cfg-backoff">Espera inicial (s)</label><input id="cfg-backoff" type="number" min="1" max="300"></div><div class="field"><label for="cfg-teto">Espera máxima (s)</label><input id="cfg-teto" type="number" min="1" max="3600"></div><div class="field"><label>Publicação final</label><input value="BLOQUEADA" readonly aria-label="Publicação final bloqueada"></div></div><div class="btnrow" style="margin-top:18px"><button class="btn primary" id="save-config">Salvar configuração local</button></div></div><div class="panel"><h2>Defesas obrigatórias</h2><div class="checklist" style="margin-top:14px"><div class="check">Processamento em pequenos lotes e concorrência limitada.</div><div class="check">Backoff: aumentar a espera após erros temporários.</div><div class="check">Fila de exceções (DLQ) para erros definitivos.</div><div class="check">Chave por intervalo impede lotes sobrepostos.</div><div class="check off">Checkpoint compartilhado por duas máquinas ainda não existe.</div><div class="check off">Scripts não têm adaptadores reais de origem/destino.</div></div><p class="note">Parâmetros registrados aqui não configuram um servidor externo automaticamente.</p></div></div>
+  <div class="panel"><div class="section-heading"><div><h2>Cadastro reutilizável de código</h2><p class="note">Modelos conservadores sem chamadas de rede nem credenciais. Edite, salve, calcule SHA-256 e baixe.</p></div><div class="toggle-tabs"><button class="code-tab selected" data-tab="sh">script.sh</button><button class="code-tab" data-tab="py">Python</button></div></div><div class="toolbar"><span id="script-kind" class="pill grey">Script Shell (.sh)</span><div class="field" style="width:150px"><label for="script-version">Versão de cadastro</label><input id="script-version" maxlength="32" value="0.1.0-local"></div></div><label class="eyebrow" for="code-edit">Conteúdo do arquivo</label><textarea class="code-editor" id="code-edit" spellcheck="false"></textarea><p class="hint">Não cole tokens, senhas, dados pessoais ou URLs com credenciais. O conteúdo fica armazenado no navegador e pode constar do backup.</p><div class="btnrow"><button class="btn primary" id="save-script">Salvar versão local</button><button class="btn" id="hash-script">Calcular SHA-256</button><button class="btn" id="download-script">Baixar arquivo</button><button class="btn" id="download-config">Baixar configuração JSON</button></div><div class="mini-code" id="hash-output" style="margin-top:15px">SHA-256 ainda não calculado nesta edição.</div></div>
+ </section>
+ <section class="page" data-page="audit" aria-label="Auditoria e relatórios">
+  <h1>Auditoria, exceções e relatórios</h1><p class="sub">Exporte registros para análise ou e-mail. O site não envia mensagens automaticamente.</p>
+  <div class="panel"><div class="row-head"><div><h2>Exportações disponíveis</h2><p class="note" style="margin:2px 0">O JSON serve como checkpoint manual; o CSV abre em planilhas.</p></div></div><div class="btnrow"><button id="export-json" class="btn primary">↓ Backup JSON</button><button id="export-csv" class="btn">↓ Fila CSV</button><button id="export-report" class="btn">↓ Relatório HTML para e-mail</button><button id="copy-report" class="btn">Copiar resumo</button><label class="btn" for="import-json">↑ Restaurar backup</label><input id="import-json" type="file" accept=".json,application/json" hidden></div><p class="hint">Importar substitui os registros locais após confirmação digitada. Proteja o arquivo exportado de acordo com a LGPD.</p></div>
+  <div class="grid2" style="margin-top:18px"><div class="panel"><div class="row-head"><h2>Log de auditoria local</h2><span class="pill grey" id="audit-count">0 evento(s)</span></div><div id="audit-list" style="max-height:530px;overflow:auto"></div><p class="note">O histórico deste navegador não é à prova de alteração. Para auditoria confiável, é necessário servidor com armazenamento imutável e controle de acesso.</p></div><div class="panel"><div class="row-head"><h2>Fila de exceções · DLQ</h2><span class="pill red" id="dlq-count">0</span></div><p class="note">DLQ = fila separada de falhas definitivas, para corrigir e decidir a retomada sem repetir indefinidamente.</p><div id="dlq-list"></div></div></div>
+  <div class="panel"><div class="panel-head"><div><h2>Registro e teste de links</h2><p>Um link só recebe botão de abertura após teste HTTPS com resposta positiva no navegador.</p></div></div><form id="link-form" class="formgrid"><div class="field"><label for="link-title">Nome do link</label><input id="link-title" placeholder="Ex.: documentação da API" required maxlength="100"></div><div class="field"><label for="link-url">URL HTTPS (sem senha/token)</label><input id="link-url" type="url" placeholder="https://..." required></div><div class="full"><button class="btn" type="submit">Adicionar link não testado</button></div></form><hr class="divider"><div id="link-list"></div><div class="notice blue"><strong>Limitação do teste de links</strong>O navegador pode impedir a checagem de outros domínios por segurança (CORS). Nessa situação, o site registra a falha e não disponibiliza um botão que prometa acesso verificado. Um retorno HTTP válido também não comprova o conteúdo nem a permissão do destinatário.</div></div>
+ </section>
+ <section class="page" data-page="security" aria-label="Segurança e governança">
+  <h1>Segurança e critérios de liberação</h1><p class="sub">A interface foi projetada para falhar de forma segura: se não existe prova, não existe publicação automática.</p>
+  <div class="grid2"><div class="panel"><h2>O que já funciona neste site</h2><div class="checklist" style="margin-top:16px"><div class="check">Cadastrar lotes, bloquear sobreposições e manter histórico local.</div><div class="check">Registrar fatos, diagnósticos, erros e ações humanas separadamente.</div><div class="check">Cadastrar shell e Python, gerar SHA-256 e exportar versões.</div><div class="check">Exportar relatórios, CSV e backup sem envio automático.</div><div class="check">Testar endereços HTTPS e registrar falhas de acesso.</div></div></div><div class="panel"><h2>O que ainda está bloqueado</h2><div class="checklist" style="margin-top:16px"><div class="check off">Baixar PDFs do servidor externo e validar regras reais de negócio.</div><div class="check off">Enviar documentos ao servidor interno e publicar no sistema final.</div><div class="check off">Validar leitura independente e origem de provas de execução.</div><div class="check off">Compartilhar checkpoint e exclusividade entre várias máquinas.</div><div class="check off">Ativar autenticação, permissões por usuário e logs imutáveis.</div></div></div></div>
+  <div class="panel"><h2>Fluxo exigido para integração real</h2><div class="flowline"><div class="flowstep"><b>1</b><span>Verificar acesso e permissão</span></div><div class="flowstep"><b>2</b><span>Definir regras e contrato de dados</span></div><div class="flowstep"><b>3</b><span>Testar ambiente de homologação</span></div><div class="flowstep"><b>4</b><span>Habilitar execução controlada</span></div><div class="flowstep"><b>5</b><span>Salvar checkpoint fora do computador</span></div><div class="flowstep"><b>6</b><span>Verificar hash SHA-256</span></div><div class="flowstep"><b>7</b><span>Confirmar destino por fonte independente</span></div><div class="flowstep"><b>8</b><span>Testar repetição sem duplicação</span></div><div class="flowstep"><b>9</b><span>Autorizar publicação final separadamente</span></div></div><hr class="divider"><div class="notice"><strong>Bloqueio principal</strong>Faltam os contratos técnicos dos três destinos, os critérios de conferência, a autenticação autorizada, o banco de estado compartilhado e o ensaio real de ponta a ponta. Até isso existir, o painel é um gerenciador local de registros e não um executor de PDFs.</div></div>
+  <div class="grid2" style="margin-top:18px"><div class="panel"><h2>Parâmetros do legado</h2><p class="note">O número é uma estimativa configurável, não quantidade importada ou conferida.</p><div class="formgrid" style="margin-top:12px"><div class="field"><label for="cfg-total">Total estimado de contratos</label><input id="cfg-total" type="number" min="1" max="5000000" step="1"></div><div class="field" style="justify-content:flex-end"><button class="btn" id="save-total">Salvar estimativa</button></div></div></div><div class="panel"><h2>Origem das regras</h2><div class="mini-code">Fonte: ericson-j-santos/chatgpt-operational-rules<br>Branch: main<br>Versão: 1.6.21<br>Commit: 58dcd4200f412a866278027ba9e433439a03f3b3<br>Data consultada: 12/11/2026</div><p class="note">O site não verifica novas versões automaticamente. A interface também não prova que o código instalado no servidor corresponde ao repositório.</p></div></div>
+  <div class="panel" style="margin-top:18px"><h2>Dicionário rápido</h2><div class="formgrid" style="margin-top:11px"><details open><summary>SHA-256</summary><p>Identificador calculado a partir do conteúdo. Ajuda a detectar se um arquivo mudou. Um hash informado manualmente não equivale à verificação do arquivo real.</p></details><details open><summary>Checkpoint</summary><p>Registro de onde o processo parou e de quais contratos já foram confirmados. Para troca de computador, precisa existir fora do navegador.</p></details><details><summary>Idempotência</summary><p>Repetir uma operação sem criar contratos duplicados. Exige uma chave única também no sistema de destino.</p></details><details><summary>LGPD</summary><p>Lei Geral de Proteção de Dados. Aqui significa não guardar dados pessoais ou senhas sem necessidade, limitar o acesso e manter rastreabilidade.</p></details><details><summary>Fail-closed</summary><p>Quando falta prova, acesso ou autorização, o sistema interrompe a ação arriscada em vez de prosseguir por suposição.</p></details><details><summary>Preflight / retry / backoff</summary><p>Preflight é a conferência prévia. Retry é uma nova tentativa após falha temporária. Backoff é esperar mais antes de tentar novamente.</p></details></div></div>
+ </section>
+ <footer class="footer">Central de Lotes v0.1.0 · Painel local sem transmissão de PDFs · Atualizado em <span id="last-updated">—</span> · Nenhum custo externo ativado</footer>
+</main></div>
+<dialog id="new-lot" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">Cadastrar novo lote</h2><button type="button" class="close" id="new-close" aria-label="Fechar">×</button></div><form id="new-lot-form"><div class="modal-body"><p class="note" style="margin-top:0">Defina somente os limites deste lote. A criação não baixa nem publica documentos.</p><div class="formgrid"><div class="field"><label for="nl-start">Primeiro contrato (número)</label><input id="nl-start" type="number" min="1" name="inicio" required></div><div class="field"><label for="nl-end">Último contrato (número)</label><input id="nl-end" type="number" min="1" name="fim" required></div><div class="field"><label for="nl-limit">Limite de contratos por lote</label><input id="nl-limit" type="number" name="limite" readonly></div><div class="field"><label for="nl-owner">Responsável</label><input id="nl-owner" type="text" name="responsavel" maxlength="100" required placeholder="Equipe ou função"></div><div class="field full"><label for="nl-origin">Origem (nome lógico; sem senha)</label><input id="nl-origin" type="text" name="origem" maxlength="200" required placeholder="Ex.: servidor externo / pasta contratos"></div><div class="field full"><label for="nl-target">Destino (nome lógico; sem senha)</label><input id="nl-target" type="text" name="destino" maxlength="200" required placeholder="Ex.: servidor interno / módulo de publicação"></div></div><div class="notice blue" style="margin-top:15px"><strong>Idempotência local</strong>Ao cadastrar, o painel recusa intervalos ativos sobrepostos. A proteção definitiva deve existir também no servidor.</div></div><div class="modal-footer"><button type="button" class="btn" id="new-cancel">Cancelar</button><button type="submit" class="btn primary">Cadastrar lote sem executar</button></div></form></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script type="text/plain" id="seed-sh">#!/usr/bin/env bash
+set -euo pipefail
+# Modelo seguro: só planejamento. Não baixa, envia nem publica PDFs.
+# Configure a chamada ao Python num ambiente autorizado.
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+CONFIG_FILE="${1:-config.exemplo.json}"
+"$PYTHON_BIN" processar_contratos.py --config "$CONFIG_FILE" --preflight
+</script>
+<script type="text/plain" id="seed-py">#!/usr/bin/env python3
+"""Preflight local de contratos. NÃO executa download, upload ou publicação."""
+import argparse
+import json
+from pathlib import Path
+
+CAMPOS = {"limite", "paralelismo", "retry", "backoff", "teto", "modo", "publicacao", "dlq"}
+
+
+def _sem_chaves_repetidas(pares):
+    resultado = {}
+    for nome, valor in pares:
+        if nome in resultado:
+            raise ValueError(f"Chave repetida na configuração: {nome}")
+        resultado[nome] = valor
+    return resultado
+
+
+def _numero_inteiro(config, nome, minimo, maximo):
+    valor = config.get(nome)
+    if type(valor) is not int or not minimo <= valor <= maximo:
+        raise ValueError(f"Parâmetro {nome} fora dos limites de segurança")
+    return valor
+
+
+def verificar(arquivo: Path) -> dict:
+    """Valida de forma explícita mesmo com Python -O; nunca abre conexão."""
+    config = json.loads(
+        arquivo.read_text(encoding="utf-8"),
+        object_pairs_hook=_sem_chaves_repetidas,
+        parse_constant=lambda valor: (_ for _ in ()).throw(ValueError("Constante JSON inválida")),
+    )
+    if not isinstance(config, dict) or set(config) != CAMPOS:
+        raise ValueError("Configuração incompleta ou com campos não autorizados")
+    if config["modo"] != "DRY_RUN":
+        raise ValueError("Modo inseguro bloqueado: somente DRY_RUN")
+    if config["publicacao"] != "BLOQUEADA":
+        raise ValueError("Publicação deve permanecer bloqueada")
+    if config["dlq"] is not True:
+        raise ValueError("Fila de quarentena (DLQ) precisa estar habilitada")
+    _numero_inteiro(config, "limite", 1, 1000)
+    _numero_inteiro(config, "paralelismo", 1, 4)
+    _numero_inteiro(config, "retry", 0, 8)
+    backoff = _numero_inteiro(config, "backoff", 1, 300)
+    _numero_inteiro(config, "teto", backoff, 3600)
+    return config
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(description="Preflight somente leitura, sem transferência")
+    p.add_argument("--config", required=True)
+    p.add_argument("--preflight", action="store_true")
+    args = p.parse_args()
+    if not args.preflight:
+        p.error("Somente preflight é permitido; transferência e publicação estão bloqueadas")
+    try:
+        config = verificar(Path(args.config))
+    except (ValueError, json.JSONDecodeError, OSError) as erro:
+        p.error(f"Preflight bloqueado: {erro}")
+    print(json.dumps({"estado": "PREFLIGHT_LOCAL", "limite": config["limite"],
+                      "sem_transferencia": True, "publicacao": "BLOQUEADA"}, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
+</script>
+<script>
+/*INLINE_CORE*/
+</script>
+<script>
+/*INLINE_APP*/
+</script>
+</body>
+</html>
