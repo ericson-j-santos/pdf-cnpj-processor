@@ -21,7 +21,12 @@ case "${1:-}" in
     printf '%s\n' 'Uso:' \
       '  bash script-linux.sh preflight --volume DIRETORIO --minimo-gib N' \
       '  bash script-linux.sh teste-local --confirmar-loopback' \
+      '  bash script-linux.sh auditoria --volume DIRETORIO [--json]' \
       '  transferir, enviar e publicar: BLOQUEADOS ate homologacao corporativa'
+    ;;
+  auditoria)
+    shift
+    exec bash "$base/auditar-linux.sh" "$@"
     ;;
   preflight)
     shift

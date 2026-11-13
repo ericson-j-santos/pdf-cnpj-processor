@@ -1,0 +1,29 @@
+[Unit]
+Description=Auditoria somente leitura do piloto de contratos PDF - nao executa contratos
+ConditionPathIsDirectory=/var/lib/contratos-piloto
+
+[Service]
+Type=oneshot
+User=contratos-auditoria
+Group=contratos-auditoria
+WorkingDirectory=/opt/contratos-pdf-streaming
+ExecStart=/usr/bin/bash /opt/contratos-pdf-streaming/auditar-linux.sh --volume /var/lib/contratos-piloto --minimo-gib 5 --max-cpu 60 --max-memoria 75
+NoNewPrivileges=yes
+# Limites deste DIAGNOSTICO, nao do worker futuro. Ajustar pela TI.
+MemoryHigh=192M
+MemoryMax=256M
+CPUQuota=20%
+TasksMax=32
+Nice=10
+PrivateTmp=yes
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+TimeoutStartSec=30
+UMask=0077
+# Exemplo nao ativo. Usuario, pasta e limites devem ser aprovados pela TI.

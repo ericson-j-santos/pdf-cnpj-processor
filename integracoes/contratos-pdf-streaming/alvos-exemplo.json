@@ -1,0 +1,7 @@
+{
+  "servicos": [
+    {"nome": "origem", "hostname": "origem.exemplo.org", "porta": 443},
+    {"nome": "upload", "hostname": "upload.exemplo.org", "porta": 443},
+    {"nome": "publicacao", "hostname": "publicacao.exemplo.org", "porta": 443}
+  ]
+}
