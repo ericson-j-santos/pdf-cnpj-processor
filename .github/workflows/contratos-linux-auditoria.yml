@@ -1,0 +1,52 @@
+name: Contratos PDF - auditoria Linux sem publicacao
+
+on:
+  push:
+    branches:
+      - feat/piloto-streaming-contratos-local-20261112
+    paths:
+      - 'integracoes/contratos-pdf-streaming/**'
+      - '.github/workflows/contratos-linux-auditoria.yml'
+  pull_request:
+    paths:
+      - 'integracoes/contratos-pdf-streaming/**'
+      - '.github/workflows/contratos-linux-auditoria.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  testar-linux-local:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Sintaxe de Bash e systemd
+        working-directory: integracoes/contratos-pdf-streaming
+        run: |
+          bash -n script-linux.sh preflight-linux.sh auditar-linux.sh
+          systemd-analyze verify contratos-auditoria.service contratos-auditoria.timer
+      - name: Testes de unidade e HTTP em loopback (nunca rede corporativa)
+        working-directory: integracoes/contratos-pdf-streaming
+        run: |
+          python3 -B -m unittest -v \
+            test_piloto_streaming test_preflight_hml test_controle_carga \
+            test_script_linux test_auditar_linux
+      - name: Controle negativo - auditoria nao homologa HML
+        working-directory: integracoes/contratos-pdf-streaming
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          resultado = subprocess.run(
+              ['bash', 'script-linux.sh', 'auditoria', '--volume', os.environ['RUNNER_TEMP'],
+               '--minimo-gib', '1', '--json'], capture_output=True, text=True, timeout=15)
+          assert resultado.returncode in (0,2), resultado.stderr
+          dados = json.loads(resultado.stdout)
+          assert dados['aptidao_corporativa'] == 'NAO_HOMOLOGADO'
+          assert dados['aprovacoes_hml'] == 0
+          assert dados['post_autorizado'] is False
+          assert dados['download_corporativo_autorizado'] is False
+          print('CONFIRMADO: auditoria local nao libera operacao corporativa')
+          PY
