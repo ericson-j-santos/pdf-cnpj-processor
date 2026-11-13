@@ -23,6 +23,7 @@ case "${1:-}" in
       '  bash script-linux.sh teste-local --confirmar-loopback' \
       '  bash script-linux.sh auditoria --volume DIRETORIO [--json]' \
       '  bash script-linux.sh planejar-hml --manifesto ARQUIVO --volume DIRETORIO --premissa-hml-declarada' \
+      '  bash script-linux.sh fila-status --banco ARQUIVO_SQLITE_TESTE' \
       '  transferir, enviar e publicar: BLOQUEADOS ate homologacao corporativa'
     ;;
   auditoria)
@@ -32,6 +33,10 @@ case "${1:-}" in
   planejar-hml)
     shift
     exec bash "$base/planejar-hml.sh" "$@"
+    ;;
+  fila-status)
+    shift
+    exec bash "$base/fila-linux.sh" --status "$@"
     ;;
   preflight)
     shift
