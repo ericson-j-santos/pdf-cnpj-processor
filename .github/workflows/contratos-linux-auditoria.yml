@@ -24,14 +24,14 @@ jobs:
       - name: Sintaxe de Bash e systemd
         working-directory: integracoes/contratos-pdf-streaming
         run: |
-          bash -n script-linux.sh preflight-linux.sh auditar-linux.sh
+          bash -n script-linux.sh preflight-linux.sh auditar-linux.sh planejar-hml.sh
           systemd-analyze verify contratos-auditoria.service contratos-auditoria.timer
       - name: Testes de unidade e HTTP em loopback (nunca rede corporativa)
         working-directory: integracoes/contratos-pdf-streaming
         run: |
           python3 -B -m unittest -v \
             test_piloto_streaming test_preflight_hml test_controle_carga \
-            test_script_linux test_auditar_linux
+            test_script_linux test_auditar_linux test_planejar_hml
       - name: Controle negativo - auditoria nao homologa HML
         working-directory: integracoes/contratos-pdf-streaming
         run: |

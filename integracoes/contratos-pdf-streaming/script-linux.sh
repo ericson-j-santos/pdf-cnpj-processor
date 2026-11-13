@@ -22,11 +22,16 @@ case "${1:-}" in
       '  bash script-linux.sh preflight --volume DIRETORIO --minimo-gib N' \
       '  bash script-linux.sh teste-local --confirmar-loopback' \
       '  bash script-linux.sh auditoria --volume DIRETORIO [--json]' \
+      '  bash script-linux.sh planejar-hml --manifesto ARQUIVO --volume DIRETORIO --premissa-hml-declarada' \
       '  transferir, enviar e publicar: BLOQUEADOS ate homologacao corporativa'
     ;;
   auditoria)
     shift
     exec bash "$base/auditar-linux.sh" "$@"
+    ;;
+  planejar-hml)
+    shift
+    exec bash "$base/planejar-hml.sh" "$@"
     ;;
   preflight)
     shift

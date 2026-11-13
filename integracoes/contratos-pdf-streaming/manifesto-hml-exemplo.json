@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "lotes": [
+    {
+      "lote_id": "LOTE_FICTICIO_001",
+      "documentos": [
+        {"contrato_id": "CONTRATO_FICTICIO_01", "documento_id": "PDF_01", "versao": "V1", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bytes": 1048576},
+        {"contrato_id": "CONTRATO_FICTICIO_02", "documento_id": "PDF_02", "versao": "V1", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bytes": 524288}
+      ]
+    }
+  ]
+}
